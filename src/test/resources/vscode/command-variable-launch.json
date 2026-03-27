@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "inputs": [
+        {
+            "id": "test-app-selector",
+            "type": "command",
+            "command": "extension.commandvariable.pickStringRemember",
+            "args": {
+                "key": "test-app-selector",
+                "addLabelToTop": "${remember:test-app-selector}",
+                "description": "Select Test Entry",
+                "options": [
+                    "@_LAUNCH_TESTS@"
+                ]
+            }
+        }
+    ],
+    "configurations": [
+        {
+            "name": "test-app",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "console": "internalConsole",
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "test-app",
+            "program": "@_BINARY_DIR@/test/bin/test-app.exe",
+            "args": [
+                "--project-binary-dir=@_BINARY_DIR@",
+                "--gtest_filter=${input:test-app-selector}"
+            ],
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "@_BINARY_DIR@/test/bin"
+                }
+            ]
+        }
+    ]
+}
