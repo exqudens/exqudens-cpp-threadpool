@@ -9,7 +9,6 @@
 #include <exqudens/log/api/Logging.hpp>
 
 #include "TestUtils.hpp"
-#include "exqudens/ThreadPool.hpp"
 
 class OtherUnitTests: public testing::Test {
 
@@ -25,8 +24,7 @@ TEST_F(OtherUnitTests, test1) {
         std::string testCase = testing::UnitTest::GetInstance()->current_test_info()->name();
         EXQUDENS_LOG_INFO(LOGGER_ID) << "bgn";
 
-        std::string version = exqudens::ThreadPool::getVersion();
-        EXQUDENS_LOG_INFO(LOGGER_ID) << "version: '" << version << "'";
+        // TODO
 
         EXQUDENS_LOG_INFO(LOGGER_ID) << "end";
     } catch (const std::exception& e) {

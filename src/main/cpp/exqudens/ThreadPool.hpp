@@ -61,6 +61,8 @@ namespace exqudens {
 
             ThreadPool();
 
+            bool isStarted();
+
             void start(
                 const std::optional<size_t>& queueSize = {},
                 const std::optional<size_t>& size = {}
@@ -182,6 +184,14 @@ namespace exqudens {
     }
 
     EXQUDENS_THREADPOOL_INLINE ThreadPool::ThreadPool() = default;
+
+    EXQUDENS_THREADPOOL_INLINE bool ThreadPool::isStarted() {
+        try {
+            return started.load();
+        } catch (...) {
+            std::throw_with_nested(std::runtime_error(CALL_INFO));
+        }
+    }
 
     EXQUDENS_THREADPOOL_INLINE void ThreadPool::start(
         const std::optional<size_t>& optionalSize,

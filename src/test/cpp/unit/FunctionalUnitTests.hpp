@@ -55,7 +55,7 @@ class FunctionalUnitTests: public testing::Test {
 
     protected:
 
-        static void addLogEvent(
+        static void log(
             const std::string& file,
             size_t line,
             const std::string& function,
@@ -74,26 +74,15 @@ class FunctionalUnitTests: public testing::Test {
             logEvents.emplace_back(logEvent);
         }
 
-        static void log(
-            const std::string& file,
-            size_t line,
-            const std::string& function,
-            const std::string& id,
-            unsigned short level,
-            const std::string& message
-        ) {
-            exqudens::log::api::Logging::Writer(file, line, function, id, level) << message;
-        }
-
 };
 
-TEST_F(FunctionalUnitTests, test_setLogFunction_isSetLogFunction_getVersion_1) {
+TEST_F(FunctionalUnitTests, test_setLogFunction_isSetLogFunction_getVersion_isStarted_start_stop_1) {
     try {
         std::string testGroup = testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
         std::string testCase = testing::UnitTest::GetInstance()->current_test_info()->name();
         EXQUDENS_LOG_INFO(LOGGER_ID) << "bgn";
 
-        exqudens::ThreadPool::setLogFunction(&FunctionalUnitTests::addLogEvent);
+        exqudens::ThreadPool::setLogFunction(&FunctionalUnitTests::log);
         EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
 
         ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
@@ -125,6 +114,19 @@ TEST_F(FunctionalUnitTests, test_setLogFunction_isSetLogFunction_getVersion_1) {
 
         ASSERT_EQ(expectedLogMessage, actualLogMessage);
 
+        logEvents.clear();
+        ASSERT_TRUE(logEvents.empty());
+
+        exqudens::ThreadPool pool = {};
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "pool.isStarted: " << pool.isStarted();
+
+        ASSERT_FALSE(pool.isStarted());
+        pool.start(1, 1);
+        ASSERT_TRUE(pool.isStarted());
+        pool.stop();
+        ASSERT_FALSE(pool.isStarted());
+        ASSERT_TRUE(logEvents.empty());
+
         exqudens::ThreadPool::setLogFunction({});
         EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
 
@@ -148,7 +150,7 @@ TEST_F(FunctionalUnitTests, test_start_submit_stop_1) {
         EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
         ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
 
-        exqudens::ThreadPool pool;
+        exqudens::ThreadPool pool = {};
         pool.start(3);
         TestClass1 object;
         auto testLambda1 = [] () { return 123; };
@@ -184,7 +186,22 @@ TEST_F(FunctionalUnitTests, test_start_submit_stop_2) {
         EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
         ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
 
-        //TODO
+        exqudens::ThreadPool pool = {};
+        pool.start(3);
+        TestClass1 object;
+        auto testLambda2 = [] (int value) { return value; };
+        std::future<int> testLambdaFuture = pool.submit(testLambda2, 123);
+        std::future<int> testFunctionFuture = pool.submit(&testFunction2, 456);
+        std::future<int> testMethodFuture = pool.submit(std::bind(&TestClass1::testMethod2, object, std::placeholders::_1), 789);
+        int testLambdaExpected = 123;
+        int testFunctionExpected = 456;
+        int testMethodExpected = 789;
+        int testLambdaResult = testLambdaFuture.get();
+        int testFunctionResult = testFunctionFuture.get();
+        int testMethodResult = testMethodFuture.get();
+        ASSERT_EQ(testLambdaExpected, testLambdaResult);
+        ASSERT_EQ(testFunctionExpected, testFunctionResult);
+        ASSERT_EQ(testMethodExpected, testMethodResult);
 
         EXQUDENS_LOG_INFO(LOGGER_ID) << "end";
     } catch (const std::exception& e) {
@@ -194,7 +211,7 @@ TEST_F(FunctionalUnitTests, test_start_submit_stop_2) {
     }
 }
 
-TEST_F(FunctionalUnitTests, test_start_submit_stop_999) {
+TEST_F(FunctionalUnitTests, test_start_submit_stop_3) {
     try {
         std::string testGroup = testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
         std::string testCase = testing::UnitTest::GetInstance()->current_test_info()->name();
@@ -204,7 +221,172 @@ TEST_F(FunctionalUnitTests, test_start_submit_stop_999) {
         EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
         ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
 
-        //TODO
+        exqudens::ThreadPool pool = {};
+        pool.start(3);
+        TestClass1 object;
+        auto testLambda1 = [] () { return 123; };
+        std::future<int> testLambdaFuture = pool.submit(testLambda1);
+        std::future<int> testFunctionFuture = pool.submit(&TestClass1::testStaticMethod1);
+        std::future<int> testMethodFuture = pool.submit(std::bind(&TestClass1::testMethod1, object));
+        int testLambdaExpected = 123;
+        int testFunctionExpected = 123;
+        int testMethodExpected = 123;
+        int testLambda1result = testLambdaFuture.get();
+        int testFunction1result = testFunctionFuture.get();
+        int testMethod1result = testMethodFuture.get();
+        ASSERT_EQ(testLambdaExpected, testLambda1result);
+        ASSERT_EQ(testFunctionExpected, testFunction1result);
+        ASSERT_EQ(testMethodExpected, testMethod1result);
+        pool.stop();
+
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "end";
+    } catch (const std::exception& e) {
+        std::string errorMessage = TestUtils::toString(e);
+        std::cout << LOGGER_ID << " ERROR: " << errorMessage << std::endl;
+        FAIL() << errorMessage;
+    }
+}
+
+TEST_F(FunctionalUnitTests, test_start_submit_stop_4) {
+    try {
+        std::string testGroup = testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
+        std::string testCase = testing::UnitTest::GetInstance()->current_test_info()->name();
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "bgn";
+
+        exqudens::ThreadPool::setLogFunction(&FunctionalUnitTests::log);
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
+        ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
+
+        exqudens::ThreadPool pool = {};
+        pool.start(3);
+        TestClass1 object;
+        auto testLambda2 = [] (int value) { return value; };
+        std::future<int> testLambdaFuture = pool.submit(testLambda2, 123);
+        std::future<int> testFunctionFuture = pool.submit(&TestClass1::testStaticMethod2, 456);
+        std::future<int> testMethodFuture = pool.submit(std::bind(&TestClass1::testMethod2, object, std::placeholders::_1), 789);
+        int testLambdaExpected = 123;
+        int testFunctionExpected = 456;
+        int testMethodExpected = 789;
+        int testLambdaResult = testLambdaFuture.get();
+        int testFunctionResult = testFunctionFuture.get();
+        int testMethodResult = testMethodFuture.get();
+        ASSERT_EQ(testLambdaExpected, testLambdaResult);
+        ASSERT_EQ(testFunctionExpected, testFunctionResult);
+        ASSERT_EQ(testMethodExpected, testMethodResult);
+
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "end";
+    } catch (const std::exception& e) {
+        std::string errorMessage = TestUtils::toString(e);
+        std::cout << LOGGER_ID << " ERROR: " << errorMessage << std::endl;
+        FAIL() << errorMessage;
+    }
+}
+
+TEST_F(FunctionalUnitTests, test_start_submit_stop_5) {
+    try {
+        std::string testGroup = testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
+        std::string testCase = testing::UnitTest::GetInstance()->current_test_info()->name();
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "bgn";
+
+        exqudens::ThreadPool::setLogFunction(&FunctionalUnitTests::log);
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
+        ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
+
+        exqudens::ThreadPool pool = {};
+        pool.start(3);
+        int result = 0;
+        auto testLambda = [&result] { result = 123; };
+        std::future<void> testLambdaFuture = pool.submit(testLambda);
+        testLambdaFuture.get();
+        int expected = 123;
+        ASSERT_EQ(expected, result);
+
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "end";
+    } catch (const std::exception& e) {
+        std::string errorMessage = TestUtils::toString(e);
+        std::cout << LOGGER_ID << " ERROR: " << errorMessage << std::endl;
+        FAIL() << errorMessage;
+    }
+}
+
+TEST_F(FunctionalUnitTests, test_start_submit_stop_6) {
+    try {
+        std::string testGroup = testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
+        std::string testCase = testing::UnitTest::GetInstance()->current_test_info()->name();
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "bgn";
+
+        exqudens::ThreadPool::setLogFunction(&FunctionalUnitTests::log);
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
+        ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
+
+        exqudens::ThreadPool pool = {};
+        ASSERT_THROW(pool.start(1, 0), std::exception);
+        ASSERT_THROW(pool.start(0, 1), std::exception);
+        ASSERT_THROW(pool.start(0, 0), std::exception);
+        try {
+            pool.start(0, 1);
+        FAIL() << "'std::exception' is not thrown";
+        } catch (const std::exception& e) {
+            std::vector<std::string> errorMessages = TestUtils::toStringVector(e);
+            ASSERT_EQ(2, errorMessages.size());
+            EXQUDENS_LOG_INFO(LOGGER_ID) << "errorMessages.at(1): '" << errorMessages.at(1) << "'";
+            ASSERT_NE(std::string::npos, errorMessages.at(1).find("'optionalSize' is zero"));
+        } catch (...) {
+            FAIL() << "'std::exception' is not thrown";
+        }
+        try {
+            pool.start(1, 0);
+            FAIL() << "'std::exception' is not thrown";
+        } catch (const std::exception& e) {
+            std::vector<std::string> errorMessages = TestUtils::toStringVector(e);
+            ASSERT_EQ(2, errorMessages.size());
+            EXQUDENS_LOG_INFO(LOGGER_ID) << "errorMessages.at(1): '" << errorMessages.at(1) << "'";
+            ASSERT_NE(std::string::npos, errorMessages.at(1).find("'optionalQueueSize' is zero"));
+        } catch (...) {
+            FAIL() << "'std::exception' is not thrown";
+        }
+        try {
+            pool.start(0, 0);
+            FAIL() << "'std::exception' is not thrown";
+        } catch (const std::exception& e) {
+            std::vector<std::string> errorMessages = TestUtils::toStringVector(e);
+            ASSERT_EQ(2, errorMessages.size());
+            EXQUDENS_LOG_INFO(LOGGER_ID) << "errorMessages.at(1): '" << errorMessages.at(1) << "'";
+            ASSERT_NE(std::string::npos, errorMessages.at(1).find("'optionalQueueSize' is zero"));
+        } catch (...) {
+            FAIL() << "'std::exception' is not thrown";
+        }
+
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "end";
+    } catch (const std::exception& e) {
+        std::string errorMessage = TestUtils::toString(e);
+        std::cout << LOGGER_ID << " ERROR: " << errorMessage << std::endl;
+        FAIL() << errorMessage;
+    }
+}
+
+TEST_F(FunctionalUnitTests, test_start_submit_stop_7) {
+    try {
+        std::string testGroup = testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
+        std::string testCase = testing::UnitTest::GetInstance()->current_test_info()->name();
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "bgn";
+
+        exqudens::ThreadPool::setLogFunction(&FunctionalUnitTests::log);
+        EXQUDENS_LOG_INFO(LOGGER_ID) << "exqudens.ThreadPool.isSetLogFunction: " << exqudens::ThreadPool::isSetLogFunction();
+        ASSERT_TRUE(exqudens::ThreadPool::isSetLogFunction());
+
+        exqudens::ThreadPool pool = {};
+        pool.start(3);
+        auto testLambda = [] { throw std::invalid_argument("test!"); };
+        std::future<void> testLambdaFuture = pool.submit(testLambda);
+        try {
+            testLambdaFuture.get();
+            FAIL() << "'std::invalid_argument' is not thrown";
+        } catch (const std::invalid_argument& e) {
+            ASSERT_EQ(std::string("test!"), std::string(e.what()));
+        } catch (...) {
+            FAIL() << "'std::invalid_argument' is not thrown";
+        }
 
         EXQUDENS_LOG_INFO(LOGGER_ID) << "end";
     } catch (const std::exception& e) {
